@@ -1,0 +1,84 @@
+app-id: design.js.Design
+runtime: org.freedesktop.Platform
+runtime-version: "21.08"
+sdk: org.freedesktop.Sdk
+base: org.electronjs.Electron2.BaseApp
+base-version: "21.08"
+separate-locales: false
+# 看起来这两个是在打包的时候用来自动化重命名用的
+# 如果是闭源软件或者你自己引入了,则不用写
+# rename-icon: js.design
+# rename-desktop-file: design.js.Design.desktop
+command: js.design-launcher.sh
+finish-args:
+  - --share=ipc
+  - --socket=x11
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --device=dri
+  - --share=network
+  - --filesystem=xdg-documents
+  - --filesystem=xdg-download
+  - --talk-name=org.freedesktop.Notifications
+  - --talk-name=org.kde.StatusNotifierWatcher
+  - --talk-name=com.canonical.AppMenu.Registrar
+
+modules:
+  # 隔离环境下使用 appimage 自解压容易出问题,所以还是上工具
+  # 直接下载一个 7z 来干活
+  - name: p7zip
+    buildsystem: simple
+    build-commands:
+      - install -D -m0755 -t /app/bin/ 7z
+      - install -D -m06444 -t /app/bin/ 7z.so
+    sources:
+      - type: archive
+        url: https://github.com/jinfeihan57/p7zip/releases/download/v17.04/linux-p7zip.zip
+        sha256: 8af44dec5ddc13b8dff49058c052787d537a829f264c2904c2f91e8ed30afcb2
+
+  - name: js.design
+    buildsystem: simple
+    build-commands:
+      - install -D -m0755 -t /app/bin/ apply_extra
+      - install -D -m0755 -t /app/bin/ js.design-launcher.sh
+      - install -D -m0644 -t /app/share/icons/hicolor/scalable/apps/ design.js.Design.png
+      - install -D -m0644 -t /app/share/applications/ design.js.Design.desktop
+      - install -D -m0644 -t /app/share/metainfo/ design.js.Design.appdata.xml
+    sources:
+      - type: extra-data
+        filename: js.design.AppImage
+        url: "https://img.js.design/assets/download/即时设计 Linux版.AppImage"
+        sha256: e31bdfa42e3ea597d90e80e2781666bd927f057b4101ef0a4bbe45c4c1faa5b3
+        size: 91260816
+
+      - type: script
+        # 这里我们写一个解压并搬文件的脚本
+        commands:
+          - mkdir js.design
+          - cd js.design
+          - /app/bin/7z x ../js.design.AppImage
+          - cd ..
+          - rm js.design.AppImage
+          # 由于 7z 解压不保留权限,我们需要修复权限
+          - chmod +x js.design/js.design
+          # 再考虑清理一点东西
+          - rm -rf js.design/js.design.desktop
+          - rm -rf js.design/usr
+          - rm -rf js.design/AppRun
+          - rm -rf js.design/js.design.png
+        dest-filename: apply_extra
+
+      - type: file
+        path: design.js.Design.appdata.xml
+
+      - type: file
+        path: design.js.Design.desktop
+
+      - type: file
+        path: design.js.Design.png
+
+      - type: script
+        dest-filename: js.design-launcher.sh
+        commands:
+          - export TMPDIR=$XDG_RUNTIME_DIR/app/$FLATPAK_ID
+          - zypak-wrapper.sh /app/extra/js.design/js.design "$@"

@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=即时设计
+Exec=js.design-launcher.sh %U
+Terminal=false
+Type=Application
+Icon=design.js.Design
+StartupWMClass=即时设计
+Comment=https://js.design
+Categories=Utility;

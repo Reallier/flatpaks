@@ -1,0 +1,88 @@
+app-id: com.bytedance.FeiShu
+runtime: org.freedesktop.Platform
+runtime-version: "23.08"
+sdk: org.freedesktop.Sdk
+base: org.electronjs.Electron2.BaseApp
+base-version: "23.08"
+separate-locales: false
+command: feishu-launcher.sh
+finish-args:
+  - --share=ipc
+  - --socket=x11
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --device=dri
+  - --socket=pulseaudio
+  - --socket=session-bus
+  - --share=network
+  - --filesystem=xdg-download
+  - --filesystem=xdg-documents
+  - --talk-name=com.canonical.AppMenu.Registrar
+  - --talk-name=org.freedesktop.FileManager1
+  - --talk-name=org.freedesktop.Notifications
+  - --talk-name=org.kde.StatusNotifierWatcher
+modules:
+  - name: feishu
+    # 使用简单构建
+    buildsystem: simple
+    # 此处存放构建时命令
+    # 主要是如何安装这个应用
+    # 对于非开源软件来说则是准备环境
+    build-commands:
+      - install -D -m0755 -t /app/bin/ feishu-launcher.sh
+      - mkdir -p /app/lib
+      - cp /usr/lib/x86_64-linux-gnu/libbfd* /app/lib/
+      # 库放这里就好了
+      - install -D -m0644 -t /app/share/icons/hicolor/scalable/apps/ com.bytedance.FeiShu.png
+      - install -D -m0644 -t /app/share/applications/ com.bytedance.FeiShu.desktop
+      - install -D -m0644 -t /app/share/metainfo/ com.bytedance.FeiShu.appdata.xml
+      - install -D -m0755 -t /app/bin/ apply_extra
+      # 准备 vulcan 进程的辅助脚本
+      - install -D -m0755 -t /app/bin/ vulcan-launcher.sh
+
+    sources:
+      # 对于需要额外下载的数据
+      - type: extra-data
+        url: https://sf3-cn.feishucdn.com/obj/ee-appcenter/6085d1c4/Feishu-linux_x64-6.9.20.deb
+        sha256: 920e63fef59a0815239c5f7cde493464c27e8a7179cf972d103f7e213b889fde
+        filename: feishu.deb
+        size: 333246056
+
+      - type: script
+        # 这里我们写一个解压并搬文件的脚本
+        commands:
+          - mkdir feishu-temp
+          # - set -x
+          # - ls -l
+          # - export LANG=C
+          - bsdtar -xf feishu.deb
+          # - ls
+          # - pwd
+          - tar xf data.tar.xz --directory=feishu-temp
+          # 把文件搬出来一点
+          - mv feishu-temp/opt/bytedance/feishu feishu
+          # 清理一下
+          - rm -rf feishu-temp
+          - rm -f feishu.deb data.tar.xz control.tar.* debian-binary
+          # 修复 vulcan 运行
+          # 移动原本的 vulcan 二进制
+          - mv feishu/vulcan/vulcan feishu/vulcan/vulcan-original
+          # 把脚本放来
+          - cp /app/bin/vulcan-launcher.sh feishu/vulcan/vulcan
+          - chmod +x feishu/vulcan/vulcan
+        dest-filename: apply_extra
+
+      - type: script
+        commands:
+          - zypak-wrapper.sh /app/extra/feishu/feishu "$@"
+        dest-filename: feishu-launcher.sh
+
+      # 其他资源准备
+      - type: file
+        path: vulcan-launcher.sh
+      - type: file
+        path: com.bytedance.FeiShu.png
+      - type: file
+        path: com.bytedance.FeiShu.desktop
+      - type: file
+        path: com.bytedance.FeiShu.appdata.xml
